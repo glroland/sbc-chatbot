@@ -59,7 +59,8 @@ def import_md(vdb_client, model, file_key, data):
     logger.info("Storing record into vector db....")
     row = {
         "file": file_key,
-        "sbc": embedding.tolist()
+        "vector": embedding.tolist(),
+        "text": data
     }
     vdb_client.insert(collection_name=VDB_COLLECTION_MD, records=[row])
     logger.debug(f"Inserted row into collection")

@@ -29,6 +29,16 @@ def cli_main():
         token="root:Milvus"
     )
 
+    # drop all collections that happen to be in the database
+    try:
+        vdb_client.using_database(VDB_DB_NAME)
+        logger.info("Database exists.  Purging all collections before recreating")
+        for c in vdb_client.list_collections():
+            logger.info(f"Dropping Collection: {c}")
+            vdb_client.drop_collection(c)
+    except MilvusException as e:
+        logger.debug(f"Database didn't exist - unable to purge collections: {e}")
+
     # recreate database
     logger.info("Creating Vector DB...")
     try:
@@ -38,13 +48,15 @@ def cli_main():
     except MilvusException as e:
         logger.debug(f"Database didn't exist - unable to drop: {e}")
     vdb_client.create_database(VDB_DB_NAME, "vectorstore")
+    vdb_client.using_database(VDB_DB_NAME)
     logger.info("Vector DB Re-created")
 
     # create markdown collection
     logger.info("Creating core SBC collection for vectorized markdown content")
     md_schema = vdb_client.create_schema(auto_id=False, enable_dynamic_field=True)
     md_schema.add_field(field_name="file", datatype=DataType.VARCHAR, max_length=200, is_primary=True)
-    md_schema.add_field(field_name="sbc", datatype=DataType.FLOAT_VECTOR, dim=DIMENSIONS)
+    md_schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=DIMENSIONS)
+    md_schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=60535)
     vdb_client.create_collection(collection_name=VDB_COLLECTION_MD,
                                  schema=md_schema,
                                  properties={
