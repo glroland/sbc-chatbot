@@ -1,3 +1,6 @@
 pylint
 docling
 click
+pymilvus
+sentence_transformers
+streamlit

@@ -11,7 +11,7 @@ clean:
 	mkdir -p target
 
 
-ingest: clean convert store
+ingest: clean recreate_vdb convert store
 
 convert:
 	@for file in $(PDF_FILES); do \
@@ -20,6 +20,9 @@ convert:
 		echo; \
 	done
 
+recreate_vdb:
+	python src/recreate_vector_db.py
+
 store:
 	@for file in $(JSON_FILES); do \
 		echo "Chunking and storing document: $$file"; \
@@ -27,3 +30,6 @@ store:
 		python src/chunk_and_store.py $$file; \
 		echo; \
 	done
+
+chat:
+	streamlit run src/chatbot.py
