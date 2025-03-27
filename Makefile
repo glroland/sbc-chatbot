@@ -1,5 +1,5 @@
 PDF_FILES := $(wildcard samples/*.pdf)
-JSON_FILES := $(wildcard target/*.json)
+OUTPUT_FILES := $(wildcard target/*)
 
 all: ingest
 
@@ -12,7 +12,6 @@ lint:
 clean:
 	rm -rf target
 	mkdir -p target
-
 
 ingest: clean recreate_vdb convert store
 
@@ -27,7 +26,7 @@ recreate_vdb:
 	python src/recreate_vector_db.py
 
 store:
-	@for file in $(JSON_FILES); do \
+	@for file in $(OUTPUT_FILES); do \
 		echo "Chunking and storing document: $$file"; \
 		pwd; \
 		python src/chunk_and_store.py $$file; \

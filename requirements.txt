@@ -5,3 +5,4 @@ pymilvus
 sentence_transformers
 streamlit
 openai
+watchdog

@@ -57,11 +57,12 @@ def cli_main():
     md_schema.add_field(field_name="file", datatype=DataType.VARCHAR, max_length=200, is_primary=True)
     md_schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=DIMENSIONS)
     md_schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=60535)
+    md_index_params = vdb_client.prepare_index_params()
+    md_index_params.add_index(field_name="vector", index_type="AUTOINDEX")
     vdb_client.create_collection(collection_name=VDB_COLLECTION_MD,
                                  schema=md_schema,
-                                 properties={
-        "collection.ttl.seconds": TTL
-    })
+                                 properties={"collection.ttl.seconds": TTL},
+                                 index_params=md_index_params)
     logger.info("Collection created")
 
     # close database connection

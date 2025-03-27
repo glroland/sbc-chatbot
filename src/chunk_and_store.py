@@ -57,12 +57,14 @@ def import_md(vdb_client, model, file_key, data):
 
     # insert into vecotor database
     logger.info("Storing record into vector db....")
+    v = embedding.tolist()
+    print (f"Embeddings List Type: {type(v[0][0])}")
     row = {
         "file": file_key,
-        "vector": embedding.tolist(),
+        "vector": v,
         "text": data
     }
-    vdb_client.insert(collection_name=VDB_COLLECTION_MD, records=[row])
+    vdb_client.insert(collection_name=VDB_COLLECTION_MD, data=[row])
     logger.debug(f"Inserted row into collection")
 
 
