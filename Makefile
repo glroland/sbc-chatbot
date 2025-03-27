@@ -6,6 +6,9 @@ all: ingest
 install:
 	pip install -r requirements.txt
 
+lint:
+	pylint src
+
 clean:
 	rm -rf target
 	mkdir -p target
