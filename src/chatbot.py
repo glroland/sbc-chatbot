@@ -19,7 +19,7 @@ VDB_DB_NAME = "sbcchatbot"
 VDB_COLLECTION_MD = "sbc"
 EMBEDDINGS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
-SYSTEM_PROMPT = ""
+SYSTEM_PROMPT = "Let's start chatting! 👇"
 
 torch.classes.__path__ = []
 
@@ -61,7 +61,7 @@ option = st.selectbox(
 
 # Initialize chat history
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Let's start chatting! 👇"}]
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
