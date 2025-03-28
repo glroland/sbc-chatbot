@@ -3,6 +3,7 @@ import click
 import json
 import os
 from pprint import pprint
+import numpy as np
 from pymilvus import MilvusClient
 from sentence_transformers import SentenceTransformer
 
@@ -18,6 +19,15 @@ logging.basicConfig(level=logging.DEBUG,
         # no need from cli - logging.FileHandler("chunk_and_store.log"),
         logging.StreamHandler()
     ])
+
+def encode_text(model, data):
+    # encode data
+    logger.info("Creating embeding for content....")
+    embedding = model.encode([data])
+    embedding_vector = embedding.astype(np.float32).tolist()
+    logger.debug("Done")
+
+    return embedding_vector[0]
 
 def import_yaml(vdb_client, model, file_key, data):
     pass
@@ -48,20 +58,12 @@ def import_json(vdb_client, model, file_key, data):
 #            print("")
 
 
-
 def import_md(vdb_client, model, file_key, data):
-    # encode data
-    logger.info("Creating embeding for MD content....")
-    embedding = model.encode([data])
-    logger.debug("Done")
-
     # insert into vecotor database
-    logger.info("Storing record into vector db....")
-    v = embedding.tolist()
-    print (f"Embeddings List Type: {type(v[0][0])}")
+    logger.info("Creating embeding for MD content and storing in Vector DB....")
     row = {
         "file": file_key,
-        "vector": v,
+        "vector": encode_text(model, data),
         "text": data
     }
     vdb_client.insert(collection_name=VDB_COLLECTION_MD, data=[row])
