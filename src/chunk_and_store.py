@@ -84,13 +84,9 @@ def cli_main(input_file):
     logger.info("Connecting to Vector Database Service...")
     vdb_client = MilvusClient(
         uri="http://db:19530",
-        token="root:Milvus"
+        token="root:Milvus", 
+        db_name=VDB_DB_NAME
     )
-
-    # connect to vector database
-    logger.info("Connecting to Vector DB...")
-    vdb_client.using_database(VDB_DB_NAME)
-    logger.debug("Connected to Vector DB...")
 
     # load input file
     input_file_abs = os.path.abspath(input_file)
