@@ -45,15 +45,18 @@ st.write("""To help consumers compare the different features of health benefits 
 
 file_keys = vdb_client.query(
     collection_name=VDB_COLLECTION_MD,
-    filter="file != 'SBC-Sample-Completed'",
+    filter="file like '%'",
     output_fields=["file"],
     limit=3
 )
 print (f"File Keys [{len(file_keys)}]: {file_keys}")
+file_list = []
+for file_key in file_keys:
+    file_list.append(file_key["file"])
 
 option = st.selectbox(
     "Which Summary of Benefits and Coverage document would you like to chat with?",
-    file_keys,
+    file_list,
 )
 
 # Initialize chat history

@@ -34,4 +34,4 @@ store:
 	done
 
 chat:
-	streamlit run src/chatbot.py
+	cd src && streamlit run chatbot.py
