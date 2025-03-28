@@ -19,7 +19,8 @@ VDB_DB_NAME = "sbcchatbot"
 VDB_COLLECTION_MD = "sbc"
 EMBEDDINGS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
-SYSTEM_PROMPT = "Let's start chatting! 👇"
+INTRO_MESSAGE = "How can I help you better understand your medical insurance benefits and coverages?"
+SYSTEM_PROMPT = "You are an expert in the medical insurance industry and are tasked with answering questions about SBC documentation.  SBC documents are summaries of benefits and coverage that are required to be provided to consumers by health insurance companies.  You are to answer questions submitted by the user about medical insurance only.  When the user provides a specific SBC document with their input, you must respond only in the context of that particular document."
 
 torch.classes.__path__ = []
 
@@ -65,11 +66,15 @@ if "messages" not in st.session_state:
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] == "system":
+        with st.chat_message("assistant"):
+            st.markdown(INTRO_MESSAGE)
+    else:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 # Accept user input
-if prompt := st.chat_input("What is up?"):
+if prompt := st.chat_input("Type your question here..."):
     print (f"Prompt: {prompt}")
 
     # Add user message to chat history
