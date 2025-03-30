@@ -16,7 +16,7 @@ OPENAI_TOP_P = 1.0
 MILVUS_URL = "http://db:19530"
 MILVUS_TOKEN = "root:Milvus"
 VDB_DB_NAME = "sbcchatbot"
-VDB_COLLECTION_MD = "sbc"
+VDB_COLLECTION_MD = "sbcmd"
 EMBEDDINGS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
 INTRO_MESSAGE = "How can I help you better understand your medical insurance benefits and coverages?"

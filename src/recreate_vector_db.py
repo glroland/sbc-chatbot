@@ -5,7 +5,8 @@ from pymilvus import MilvusClient, MilvusException, DataType
 logger = logging.getLogger(__name__)
 
 VDB_DB_NAME = "sbcchatbot"
-VDB_COLLECTION_MD = "sbc"
+VDB_COLLECTION_MD = "sbcmd"
+VDB_COLLECTION_PHRASES = "sbcphrases"
 DIMENSIONS = 768
 TTL = 86400*7
 
@@ -63,6 +64,22 @@ def cli_main():
                                  schema=md_schema,
                                  properties={"collection.ttl.seconds": TTL},
                                  index_params=md_index_params)
+    logger.info("Collection created")
+
+    # create phrases collection
+    logger.info("Creating core SBC collection for vectorized document phrases content")
+    phrases_schema = vdb_client.create_schema(auto_id=False, enable_dynamic_field=True)
+    phrases_schema.add_field(field_name="phrase_key", datatype=DataType.VARCHAR, max_length=1000, is_primary=True)
+    phrases_schema.add_field(field_name="file", datatype=DataType.VARCHAR, max_length=200)
+    phrases_schema.add_field(field_name="phrase_type", datatype=DataType.VARCHAR, max_length=200)
+    phrases_schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=DIMENSIONS)
+    phrases_schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=60535)
+    phrases_index_params = vdb_client.prepare_index_params()
+    phrases_index_params.add_index(field_name="vector", index_type="AUTOINDEX")
+    vdb_client.create_collection(collection_name=VDB_COLLECTION_PHRASES,
+                                 schema=phrases_schema,
+                                 properties={"collection.ttl.seconds": TTL},
+                                 index_params=phrases_index_params)
     logger.info("Collection created")
 
     # close database connection

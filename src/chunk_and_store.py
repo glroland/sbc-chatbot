@@ -10,7 +10,8 @@ from sentence_transformers import SentenceTransformer
 logger = logging.getLogger(__name__)
 
 VDB_DB_NAME = "sbcchatbot"
-VDB_COLLECTION_MD = "sbc"
+VDB_COLLECTION_MD = "sbcmd"
+VDB_COLLECTION_PHRASES = "sbcphrases"
 EMBEDDINGS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
 # Setup Logging
@@ -32,30 +33,94 @@ def encode_text(model, data):
 def import_yaml(vdb_client, model, file_key, data):
     pass
 
+def is_table_of_type(table, string_array):
+    if "data" in table and "grid" in table["data"] and len(table["data"]["grid"]) > 0:
+        table_grid = table["data"]["grid"]
+        node1 = table_grid[0]
+        if len(node1) > 0:
+            node2 = table_grid[0][0]
+            if "text" in node2:
+                table_type = node2["text"]
+                for s in string_array:
+                    if not s in table_type:
+                        return False
+
+    return True
+
+def docling_tables_to_string_table(list_of_tables):
+    string_table = []
+    string_result = ""
+
+    for table in list_of_tables:
+        if "data" in table and "grid" in table["data"] and len(table["data"]["grid"]) > 0:
+            table_grid = table["data"]["grid"]
+
+            for row in table_grid:
+                r_array = []
+                for cell in row:
+                    r_array.append(cell["text"])
+                    string_result += cell["text"] + " | "
+                string_table.append(r_array)
+                string_result += "\n"
+
+    return string_table, string_result
+
 def import_json(vdb_client, model, file_key, data):
     document = json.loads(data)
 
-    #print(yaml.dump(data, indent=2, sort_keys=False))
-#    pprint(document)
-#    print(len(document)) 
-
     document_tables = document["tables"]
-    iq_table = document_tables[0]
-    cme_table = document_tables[1]
-    cme_table_grid = cme_table["data"]["grid"]
 
-#    pprint (cme_table)
-    for row in cme_table_grid:
-        for cell in row:
-            pprint (cell["text"])
+    # extract common medical event data
+    cme_tables = []
+    for table in document_tables:
+        if is_table_of_type(table, ["Common", "Medical", "Event"]):
+            cme_tables.append(table)
+    cme_t, cme_s = docling_tables_to_string_table(cme_tables)
 
-        print("")
+    # insert into vector database
+    logger.info("Creating embeding for Common Medical Event content and storing in Vector DB....")
+    phrase_type = "Common Medical Event"
+    data = []
+    for cme_row in cme_t:
+        text = ""
+        for c in cme_row:
+            text += c + " | "
+        row = {
+            "phrase_key": file_key + "_" + phrase_type + "_" + cme_row[0],
+            "file": file_key,
+            "phrase_type": phrase_type,
+            "vector": encode_text(model, text),
+            "text": text
+        }
+        data.append(row)
+    vdb_client.insert(collection_name=VDB_COLLECTION_PHRASES, data=data)
+    logger.debug(f"Inserted CMEs into collection")
 
-#    for text in document["texts"]:
-#        print(text)
-#        if text["text"].startswith("The Summary of Benefits and Coverage"):
-#            print(text)
-#            print("")
+    # extract common medical event data
+    iq_tables = []
+    for table in document_tables:
+        if is_table_of_type(table, ["Important", "Questions"]):
+            iq_tables.append(table)
+    iq_t, iq_s = docling_tables_to_string_table(iq_tables)
+
+    # insert into vector database
+    logger.info("Creating embeding for Important Questions content and storing in Vector DB....")
+    phrase_type = "Important Questions"
+    data = []
+    for iq_row in iq_t:
+        text = ""
+        for c in iq_row:
+            text += c + " | "
+        row = {
+            "phrase_key": file_key + "_" + phrase_type + "_" + iq_row[0],
+            "file": file_key,
+            "phrase_type": phrase_type,
+            "vector": encode_text(model, text),
+            "text": text
+        }
+        data.append(row)
+    vdb_client.insert(collection_name=VDB_COLLECTION_PHRASES, data=data)
+    logger.debug(f"Inserted IQs into collection")
 
 
 def import_md(vdb_client, model, file_key, data):
