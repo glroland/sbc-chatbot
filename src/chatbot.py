@@ -20,7 +20,10 @@ VDB_COLLECTION_MD = "sbc"
 EMBEDDINGS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 
 INTRO_MESSAGE = "How can I help you better understand your medical insurance benefits and coverages?"
-SYSTEM_PROMPT = "You are an expert in the medical insurance industry and are tasked with answering questions about SBC documentation.  SBC documents are summaries of benefits and coverage that are required to be provided to consumers by health insurance companies.  You are to answer questions submitted by the user about medical insurance only.  When the user provides a specific SBC document with their input, you must respond only in the context of that particular document."
+SYSTEM_PROMPT = """You are an expert in the medical insurance industry and are tasked with answering questions about SBC documentation.  SBC documents are summaries of benefits and coverage that are required to be provided to consumers by health insurance companies.  You are to answer questions submitted by the user about medical insurance only.  All responses must be based on the SBC documentation provided in the system prompt.  If you do not know the answer, please say 'I don't know'.  
+
+SBC Document Contents:
+"""
 
 torch.classes.__path__ = []
 
@@ -55,14 +58,29 @@ file_list = []
 for file_key in file_keys:
     file_list.append(file_key["file"])
 
+def on_sbc_selectbox_change():
+    print ("INFO ---- SBC Selectbox Value Changed by User!")
+    del st.session_state["messages"]
+
 option = st.selectbox(
     "Which Summary of Benefits and Coverage document would you like to chat with?",
     file_list,
+    on_change=on_sbc_selectbox_change
 )
 
 # Initialize chat history
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    system_prompt_full = SYSTEM_PROMPT
+
+    texts = vdb_client.query(
+        collection_name=VDB_COLLECTION_MD,
+        filter="file like '%'",
+        output_fields=["text"],
+        limit=1
+    )
+    system_prompt_full += texts[0]["text"]
+
+    st.session_state.messages = [{"role": "system", "content": system_prompt_full}]
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
