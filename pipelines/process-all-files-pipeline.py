@@ -85,7 +85,7 @@ def recreate_vector_db():
     print("Recreated database!")
 
 
-@dsl.component()
+@dsl.component(packages_to_install=['requests'])
 def pull_sources(url: str) -> list:
 
     import requests
