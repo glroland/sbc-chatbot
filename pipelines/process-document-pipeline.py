@@ -5,6 +5,7 @@ from kfp import dsl, components
 from kfp.dsl import Input, Output, Artifact
 from kfp import compiler
 
+
 @dsl.component(packages_to_install=['requests'])
 def download_document(url: str, pdf: Output[Artifact]):
     print (f"Downloading Document: {url}")
@@ -22,14 +23,65 @@ def download_document(url: str, pdf: Output[Artifact]):
     print ("Download complete")
 
 
-@dsl.component
-def convert_pdf_to_document(pdf: Input[Artifact]):
+@dsl.component(packages_to_install=['docling'])
+def convert_pdf_to_document(pdf: Input[Artifact],
+                            output_md: Output[Artifact],
+                            output_json: Output[Artifact],
+                            output_yaml: Output[Artifact]):
     print (f"Converting document: {pdf.path}")
 
+    import json
+    import yaml
+    from pathlib import Path
+    from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+    from docling.datamodel.base_models import InputFormat
+    from docling.document_converter import (
+        DocumentConverter,
+        PdfFormatOption,
+        WordFormatOption,
+    )
+    from docling_core.types.doc import ImageRefMode
+    from docling.pipeline.simple_pipeline import SimplePipeline
+    from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
 
+    doc_converter = (
+        DocumentConverter(
+            allowed_formats=[
+                InputFormat.PDF,
+                InputFormat.IMAGE,
+                InputFormat.DOCX,
+                InputFormat.HTML,
+                InputFormat.PPTX,
+                InputFormat.ASCIIDOC,
+                InputFormat.CSV,
+                InputFormat.MD,
+            ],  # whitelist formats, non-matching files are ignored.
+            format_options={
+                InputFormat.PDF: PdfFormatOption(
+                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend
+                ),
+                InputFormat.DOCX: WordFormatOption(
+                    pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend
+                ),
+            },
+        )
+    )
 
+    res = doc_converter.convert(pdf.path)
 
-    pass
+    print(f"Document {res.input.file.name} converted.")
+    print(res.document._export_to_indented_text(max_text_len=16))
+
+    # Export Docling document format to markdowndoc:
+    with (output_md.path).open("w") as fp:
+        fp.write(res.document.export_to_markdown(image_mode = ImageRefMode.PLACEHOLDER))
+
+    with (output_json.path).open("w") as fp:
+        fp.write(json.dumps(res.document.export_to_dict(), indent=4))
+
+    with (output_yaml.path).open("w") as fp:
+        fp.write(yaml.safe_dump(res.document.export_to_dict()))
+
 
 @dsl.component
 def store_document_in_vector_db():

@@ -11,6 +11,20 @@ components:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        output_json:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        output_md:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        output_yaml:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
   comp-download-document:
     executorLabel: exec-download-document
     inputDefinitions:
@@ -40,8 +54,9 @@ deploymentSpec:
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'docling' &&\
+          \ \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -53,8 +68,35 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef convert_pdf_to_document(pdf: Input[Artifact]):\n    print (f\"\
-          Converting document: {pdf.path}\")\n\n\n\n\n    pass\n\n"
+          \ *\n\ndef convert_pdf_to_document(pdf: Input[Artifact],\n             \
+          \               output_md: Output[Artifact],\n                         \
+          \   output_json: Output[Artifact],\n                            output_yaml:\
+          \ Output[Artifact]):\n    print (f\"Converting document: {pdf.path}\")\n\
+          \n    import json\n    import yaml\n    from pathlib import Path\n    from\
+          \ docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend\n   \
+          \ from docling.datamodel.base_models import InputFormat\n    from docling.document_converter\
+          \ import (\n        DocumentConverter,\n        PdfFormatOption,\n     \
+          \   WordFormatOption,\n    )\n    from docling_core.types.doc import ImageRefMode\n\
+          \    from docling.pipeline.simple_pipeline import SimplePipeline\n    from\
+          \ docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline\n\n\
+          \    doc_converter = (\n        DocumentConverter(\n            allowed_formats=[\n\
+          \                InputFormat.PDF,\n                InputFormat.IMAGE,\n\
+          \                InputFormat.DOCX,\n                InputFormat.HTML,\n\
+          \                InputFormat.PPTX,\n                InputFormat.ASCIIDOC,\n\
+          \                InputFormat.CSV,\n                InputFormat.MD,\n   \
+          \         ],  # whitelist formats, non-matching files are ignored.\n   \
+          \         format_options={\n                InputFormat.PDF: PdfFormatOption(\n\
+          \                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend\n\
+          \                ),\n                InputFormat.DOCX: WordFormatOption(\n\
+          \                    pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend\n\
+          \                ),\n            },\n        )\n    )\n\n    res = doc_converter.convert(pdf.path)\n\
+          \n    print(f\"Document {res.input.file.name} converted.\")\n    print(res.document._export_to_indented_text(max_text_len=16))\n\
+          \n    # Export Docling document format to markdowndoc:\n    with (output_md.path).open(\"\
+          w\") as fp:\n        fp.write(res.document.export_to_markdown(image_mode\
+          \ = ImageRefMode.PLACEHOLDER))\n\n    with (output_json.path).open(\"w\"\
+          ) as fp:\n        fp.write(json.dumps(res.document.export_to_dict(), indent=4))\n\
+          \n    with (output_yaml.path).open(\"w\") as fp:\n        fp.write(yaml.safe_dump(res.document.export_to_dict()))\n\
+          \n"
         image: python:3.9
     exec-download-document:
       container:
