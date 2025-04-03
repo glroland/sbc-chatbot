@@ -78,24 +78,27 @@ deploymentSpec:
           \ import (\n        DocumentConverter,\n        PdfFormatOption,\n     \
           \   WordFormatOption,\n    )\n    from docling_core.types.doc import ImageRefMode\n\
           \    from docling.pipeline.simple_pipeline import SimplePipeline\n    from\
-          \ docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline\n\n\
-          \    doc_converter = (\n        DocumentConverter(\n            allowed_formats=[\n\
-          \                InputFormat.PDF,\n                InputFormat.IMAGE,\n\
-          \                InputFormat.DOCX,\n                InputFormat.HTML,\n\
-          \                InputFormat.PPTX,\n                InputFormat.ASCIIDOC,\n\
-          \                InputFormat.CSV,\n                InputFormat.MD,\n   \
-          \         ],  # whitelist formats, non-matching files are ignored.\n   \
-          \         format_options={\n                InputFormat.PDF: PdfFormatOption(\n\
-          \                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend\n\
+          \ docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline\n  \
+          \  from docling.datamodel.pipeline_options import PdfPipelineOptions\n\n\
+          \n    pipeline_options = PdfPipelineOptions()\n    pipeline_options.do_ocr\
+          \ = False\n\n    doc_converter = (\n        DocumentConverter(\n       \
+          \     allowed_formats=[\n                InputFormat.PDF,\n            \
+          \    InputFormat.IMAGE,\n                InputFormat.DOCX,\n           \
+          \     InputFormat.HTML,\n                InputFormat.PPTX,\n           \
+          \     InputFormat.ASCIIDOC,\n                InputFormat.CSV,\n        \
+          \        InputFormat.MD,\n            ],  # whitelist formats, non-matching\
+          \ files are ignored.\n            format_options={\n                InputFormat.PDF:\
+          \ PdfFormatOption(\n                    pipeline_cls=StandardPdfPipeline,\
+          \ backend=PyPdfiumDocumentBackend, pipeline_options=pipeline_options,\n\
           \                ),\n                InputFormat.DOCX: WordFormatOption(\n\
           \                    pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend\n\
           \                ),\n            },\n        )\n    )\n\n    res = doc_converter.convert(pdf.path)\n\
           \n    print(f\"Document {res.input.file.name} converted.\")\n    print(res.document._export_to_indented_text(max_text_len=16))\n\
-          \n    # Export Docling document format to markdowndoc:\n    with (output_md.path).open(\"\
-          w\") as fp:\n        fp.write(res.document.export_to_markdown(image_mode\
-          \ = ImageRefMode.PLACEHOLDER))\n\n    with (output_json.path).open(\"w\"\
+          \n    # Export Docling document format to markdowndoc:\n    with open(output_md.path,\
+          \ \"w\") as fp:\n        fp.write(res.document.export_to_markdown(image_mode\
+          \ = ImageRefMode.PLACEHOLDER))\n\n    with open(output_json.path, \"w\"\
           ) as fp:\n        fp.write(json.dumps(res.document.export_to_dict(), indent=4))\n\
-          \n    with (output_yaml.path).open(\"w\") as fp:\n        fp.write(yaml.safe_dump(res.document.export_to_dict()))\n\
+          \n    with open(output_yaml.path, \"w\") as fp:\n        fp.write(yaml.safe_dump(res.document.export_to_dict()))\n\
           \n"
         image: python:3.9
     exec-download-document:

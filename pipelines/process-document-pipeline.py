@@ -43,6 +43,11 @@ def convert_pdf_to_document(pdf: Input[Artifact],
     from docling_core.types.doc import ImageRefMode
     from docling.pipeline.simple_pipeline import SimplePipeline
     from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+    from docling.datamodel.pipeline_options import PdfPipelineOptions
+
+
+    pipeline_options = PdfPipelineOptions()
+    pipeline_options.do_ocr = False
 
     doc_converter = (
         DocumentConverter(
@@ -58,7 +63,7 @@ def convert_pdf_to_document(pdf: Input[Artifact],
             ],  # whitelist formats, non-matching files are ignored.
             format_options={
                 InputFormat.PDF: PdfFormatOption(
-                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend
+                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend, pipeline_options=pipeline_options,
                 ),
                 InputFormat.DOCX: WordFormatOption(
                     pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend
@@ -73,13 +78,13 @@ def convert_pdf_to_document(pdf: Input[Artifact],
     print(res.document._export_to_indented_text(max_text_len=16))
 
     # Export Docling document format to markdowndoc:
-    with (output_md.path).open("w") as fp:
+    with open(output_md.path, "w") as fp:
         fp.write(res.document.export_to_markdown(image_mode = ImageRefMode.PLACEHOLDER))
 
-    with (output_json.path).open("w") as fp:
+    with open(output_json.path, "w") as fp:
         fp.write(json.dumps(res.document.export_to_dict(), indent=4))
 
-    with (output_yaml.path).open("w") as fp:
+    with open(output_yaml.path, "w") as fp:
         fp.write(yaml.safe_dump(res.document.export_to_dict()))
 
 
