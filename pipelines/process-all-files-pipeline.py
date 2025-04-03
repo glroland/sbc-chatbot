@@ -109,12 +109,15 @@ def pull_sources(url: str) -> list:
 def process_all_files_pipeline(url: str):
 
     recreate_db_task = recreate_vector_db()
+    recreate_db_task.set_caching_options(False)
 
     pull_sources_task = pull_sources(url=url)
+    pull_sources_task.set_caching_options(True)
     pull_sources_task.after(recreate_db_task)
 
     with dsl.ParallelFor(pull_sources_task.output) as file:
-        process_document_pipeline(url=file)
+        process_doc_task = process_document_pipeline(url=file)
+        process_doc_task.set_caching_options(False)
 
 
 # Get OpenShift Token
