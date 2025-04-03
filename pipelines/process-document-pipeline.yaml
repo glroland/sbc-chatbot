@@ -1,33 +1,45 @@
 # PIPELINE DEFINITION
-# Name: testing-control-flow-pipeline
+# Name: process-document-pipeline
 # Inputs:
-#    param: str
+#    url: str
 components:
-  comp-step1:
-    executorLabel: exec-step1
+  comp-convert-pdf-to-document:
+    executorLabel: exec-convert-pdf-to-document
+    inputDefinitions:
+      artifacts:
+        pdf:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-download-document:
+    executorLabel: exec-download-document
     inputDefinitions:
       parameters:
-        param:
+        url:
           parameterType: STRING
-  comp-step2:
-    executorLabel: exec-step2
-  comp-step3:
-    executorLabel: exec-step3
+    outputDefinitions:
+      artifacts:
+        pdf:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-store-document-in-vector-db:
+    executorLabel: exec-store-document-in-vector-db
 deploymentSpec:
   executors:
-    exec-step1:
+    exec-convert-pdf-to-document:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - step1
+        - convert_pdf_to_document
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -41,23 +53,25 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef step1(param: str):\n    print (f\"STEP 1: {param}\")\n\n"
+          \ *\n\ndef convert_pdf_to_document(pdf: Input[Artifact]):\n    print (f\"\
+          Converting document: {pdf.path}\")\n\n\n\n\n    pass\n\n"
         image: python:3.9
-    exec-step2:
+    exec-download-document:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - step2
+        - download_document
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'requests' &&\
+          \ \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -69,21 +83,26 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef step2():\n    print (\"STEP 2\")\n\n"
+          \ *\n\ndef download_document(url: str, pdf: Output[Artifact]):\n    print\
+          \ (f\"Downloading Document: {url}\")\n\n    import requests\n\n    response\
+          \ = requests.get(url, stream=True)\n    response.raw.decode_content = True\n\
+          \n    output_file = pdf.path\n    with open(output_file, 'wb') as f:\n \
+          \       for chunk in response.iter_content(chunk_size=1024): \n        \
+          \    f.write(chunk)\n\n    print (\"Download complete\")\n\n"
         image: python:3.9
-    exec-step3:
+    exec-store-document-in-vector-db:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - step3
+        - store_document_in_vector_db
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -97,45 +116,50 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef step3():\n    print (\"STEP 3\")\n\n"
+          \ *\n\ndef store_document_in_vector_db():\n    pass\n\n"
         image: python:3.9
 pipelineInfo:
-  name: testing-control-flow-pipeline
+  name: process-document-pipeline
 root:
   dag:
     tasks:
-      step1:
+      convert-pdf-to-document:
         cachingOptions:
           enableCache: true
         componentRef:
-          name: comp-step1
+          name: comp-convert-pdf-to-document
+        dependentTasks:
+        - download-document
+        inputs:
+          artifacts:
+            pdf:
+              taskOutputArtifact:
+                outputArtifactKey: pdf
+                producerTask: download-document
+        taskInfo:
+          name: convert-pdf-to-document
+      download-document:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-download-document
         inputs:
           parameters:
-            param:
-              componentInputParameter: param
+            url:
+              componentInputParameter: url
         taskInfo:
-          name: step1
-      step2:
-        cachingOptions:
-          enableCache: true
+          name: download-document
+      store-document-in-vector-db:
+        cachingOptions: {}
         componentRef:
-          name: comp-step2
+          name: comp-store-document-in-vector-db
         dependentTasks:
-        - step1
+        - convert-pdf-to-document
         taskInfo:
-          name: step2
-      step3:
-        cachingOptions:
-          enableCache: true
-        componentRef:
-          name: comp-step3
-        dependentTasks:
-        - step2
-        taskInfo:
-          name: step3
+          name: store-document-in-vector-db
   inputDefinitions:
     parameters:
-      param:
+      url:
         parameterType: STRING
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.11.0
+sdkVersion: kfp-2.12.1

@@ -6,3 +6,4 @@ sentence_transformers
 streamlit
 openai
 watchdog
+kfp

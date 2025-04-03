@@ -1,5 +1,7 @@
 # PIPELINE DEFINITION
-# Name: testing-control-flow-pipeline
+# Name: sbc-document-list-pipeline
+# Inputs:
+#    url: str
 components:
   comp-for-loop-2:
     dag:
@@ -152,7 +154,7 @@ deploymentSpec:
           \ *\n\ndef step3():\n    print (\"STEP 3\")\n\n"
         image: python:3.9
 pipelineInfo:
-  name: testing-control-flow-pipeline
+  name: sbc-document-list-pipeline
 root:
   dag:
     tasks:
@@ -162,9 +164,14 @@ root:
         parameterIterator:
           itemInput: pipelinechannel--loop-item-param-1
           items:
-            raw: '["SBC-Sample-Completed.pdf", "sbc-sample-completed-mm-508-fixed-4-12-16.pdf",
-              "SOURCES.txt", "coresbc2024.pdf"]'
+            raw: '["https://www.cms.gov/cciio/resources/forms-reports-and-other-resources/downloads/sbc-sample-completed-mm-508-fixed-4-12-16.pdf",
+              "https://www.cms.gov/CCIIO/Resources/Regulations-and-Guidance/Downloads/SBC-Sample-Completed.pdf",
+              "https://ucnet.universityofcalifornia.edu/wp-content/uploads/2024/01/coresbc2024.pdf"]'
         taskInfo:
           name: for-loop-2
+  inputDefinitions:
+    parameters:
+      url:
+        parameterType: STRING
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.11.0
+sdkVersion: kfp-2.12.1
