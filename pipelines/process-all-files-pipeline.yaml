@@ -1,89 +1,62 @@
 # PIPELINE DEFINITION
-# Name: sbc-document-list-pipeline
+# Name: process-document-pipeline
 # Inputs:
 #    url: str
 components:
-  comp-for-loop-2:
-    dag:
-      tasks:
-        testing-control-flow-pipeline:
-          cachingOptions:
-            enableCache: true
-          componentRef:
-            name: comp-testing-control-flow-pipeline
-          inputs:
-            parameters:
-              param:
-                componentInputParameter: pipelinechannel--loop-item-param-1
-          taskInfo:
-            name: testing-control-flow-pipeline
+  comp-convert-pdf-to-document:
+    executorLabel: exec-convert-pdf-to-document
+    inputDefinitions:
+      artifacts:
+        pdf:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        output_json:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        output_md:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        output_yaml:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-download-document:
+    executorLabel: exec-download-document
     inputDefinitions:
       parameters:
-        pipelinechannel--loop-item-param-1:
+        url:
           parameterType: STRING
-  comp-step1:
-    executorLabel: exec-step1
-    inputDefinitions:
-      parameters:
-        param:
-          parameterType: STRING
-  comp-step2:
-    executorLabel: exec-step2
-  comp-step3:
-    executorLabel: exec-step3
-  comp-testing-control-flow-pipeline:
-    dag:
-      tasks:
-        step1:
-          cachingOptions:
-            enableCache: true
-          componentRef:
-            name: comp-step1
-          inputs:
-            parameters:
-              param:
-                componentInputParameter: param
-          taskInfo:
-            name: step1
-        step2:
-          cachingOptions:
-            enableCache: true
-          componentRef:
-            name: comp-step2
-          dependentTasks:
-          - step1
-          taskInfo:
-            name: step2
-        step3:
-          cachingOptions:
-            enableCache: true
-          componentRef:
-            name: comp-step3
-          dependentTasks:
-          - step2
-          taskInfo:
-            name: step3
-    inputDefinitions:
-      parameters:
-        param:
-          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        pdf:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-store-document-in-vector-db:
+    executorLabel: exec-store-document-in-vector-db
 deploymentSpec:
   executors:
-    exec-step1:
+    exec-convert-pdf-to-document:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - step1
+        - convert_pdf_to_document
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'docling' &&\
+          \ \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -95,23 +68,52 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef step1(param: str):\n    print (f\"STEP 1: {param}\")\n\n"
+          \ *\n\ndef convert_pdf_to_document(pdf: Input[Artifact],\n             \
+          \               output_md: Output[Artifact],\n                         \
+          \   output_json: Output[Artifact],\n                            output_yaml:\
+          \ Output[Artifact]):\n    print (f\"Converting document: {pdf.path}\")\n\
+          \n    import json\n    import yaml\n    from pathlib import Path\n    from\
+          \ docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend\n   \
+          \ from docling.datamodel.base_models import InputFormat\n    from docling.document_converter\
+          \ import (\n        DocumentConverter,\n        PdfFormatOption,\n     \
+          \   WordFormatOption,\n    )\n    from docling_core.types.doc import ImageRefMode\n\
+          \    from docling.pipeline.simple_pipeline import SimplePipeline\n    from\
+          \ docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline\n\n\
+          \    doc_converter = (\n        DocumentConverter(\n            allowed_formats=[\n\
+          \                InputFormat.PDF,\n                InputFormat.IMAGE,\n\
+          \                InputFormat.DOCX,\n                InputFormat.HTML,\n\
+          \                InputFormat.PPTX,\n                InputFormat.ASCIIDOC,\n\
+          \                InputFormat.CSV,\n                InputFormat.MD,\n   \
+          \         ],  # whitelist formats, non-matching files are ignored.\n   \
+          \         format_options={\n                InputFormat.PDF: PdfFormatOption(\n\
+          \                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend\n\
+          \                ),\n                InputFormat.DOCX: WordFormatOption(\n\
+          \                    pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend\n\
+          \                ),\n            },\n        )\n    )\n\n    res = doc_converter.convert(pdf.path)\n\
+          \n    print(f\"Document {res.input.file.name} converted.\")\n    print(res.document._export_to_indented_text(max_text_len=16))\n\
+          \n    # Export Docling document format to markdowndoc:\n    with (output_md.path).open(\"\
+          w\") as fp:\n        fp.write(res.document.export_to_markdown(image_mode\
+          \ = ImageRefMode.PLACEHOLDER))\n\n    with (output_json.path).open(\"w\"\
+          ) as fp:\n        fp.write(json.dumps(res.document.export_to_dict(), indent=4))\n\
+          \n    with (output_yaml.path).open(\"w\") as fp:\n        fp.write(yaml.safe_dump(res.document.export_to_dict()))\n\
+          \n"
         image: python:3.9
-    exec-step2:
+    exec-download-document:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - step2
+        - download_document
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
-          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
-          $0\" \"$@\"\n"
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'requests' &&\
+          \ \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -123,21 +125,26 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef step2():\n    print (\"STEP 2\")\n\n"
+          \ *\n\ndef download_document(url: str, pdf: Output[Artifact]):\n    print\
+          \ (f\"Downloading Document: {url}\")\n\n    import requests\n\n    response\
+          \ = requests.get(url, stream=True)\n    response.raw.decode_content = True\n\
+          \n    output_file = pdf.path\n    with open(output_file, 'wb') as f:\n \
+          \       for chunk in response.iter_content(chunk_size=1024): \n        \
+          \    f.write(chunk)\n\n    print (\"Download complete\")\n\n"
         image: python:3.9
-    exec-step3:
+    exec-store-document-in-vector-db:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - step3
+        - store_document_in_vector_db
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.11.0'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.12.1'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -151,24 +158,47 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef step3():\n    print (\"STEP 3\")\n\n"
+          \ *\n\ndef store_document_in_vector_db():\n    pass\n\n"
         image: python:3.9
 pipelineInfo:
-  name: sbc-document-list-pipeline
+  name: process-document-pipeline
 root:
   dag:
     tasks:
-      for-loop-2:
+      convert-pdf-to-document:
+        cachingOptions:
+          enableCache: true
         componentRef:
-          name: comp-for-loop-2
-        parameterIterator:
-          itemInput: pipelinechannel--loop-item-param-1
-          items:
-            raw: '["https://www.cms.gov/cciio/resources/forms-reports-and-other-resources/downloads/sbc-sample-completed-mm-508-fixed-4-12-16.pdf",
-              "https://www.cms.gov/CCIIO/Resources/Regulations-and-Guidance/Downloads/SBC-Sample-Completed.pdf",
-              "https://ucnet.universityofcalifornia.edu/wp-content/uploads/2024/01/coresbc2024.pdf"]'
+          name: comp-convert-pdf-to-document
+        dependentTasks:
+        - download-document
+        inputs:
+          artifacts:
+            pdf:
+              taskOutputArtifact:
+                outputArtifactKey: pdf
+                producerTask: download-document
         taskInfo:
-          name: for-loop-2
+          name: convert-pdf-to-document
+      download-document:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-download-document
+        inputs:
+          parameters:
+            url:
+              componentInputParameter: url
+        taskInfo:
+          name: download-document
+      store-document-in-vector-db:
+        cachingOptions: {}
+        componentRef:
+          name: comp-store-document-in-vector-db
+        dependentTasks:
+        - convert-pdf-to-document
+        taskInfo:
+          name: store-document-in-vector-db
   inputDefinitions:
     parameters:
       url:
