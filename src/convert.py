@@ -10,10 +10,12 @@ from docling.document_converter import (
     DocumentConverter,
     PdfFormatOption,
     WordFormatOption,
+    ImageFormatOption,
 )
 from docling_core.types.doc import ImageRefMode
 from docling.pipeline.simple_pipeline import SimplePipeline
 from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+from docling.datamodel.pipeline_options import PdfPipelineOptions
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,9 @@ logging.basicConfig(level=logging.DEBUG,
 @click.argument('output_dir')
 def cli_main(input_file, output_dir):
 
+    pipeline_options = PdfPipelineOptions()
+    pipeline_options.do_ocr = True
+
     doc_converter = (
         DocumentConverter(
             allowed_formats=[
@@ -43,11 +48,14 @@ def cli_main(input_file, output_dir):
             ],  # whitelist formats, non-matching files are ignored.
             format_options={
                 InputFormat.PDF: PdfFormatOption(
-                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend
+                    pipeline_cls=StandardPdfPipeline, backend=PyPdfiumDocumentBackend, pipeline_options=pipeline_options,
                 ),
                 InputFormat.DOCX: WordFormatOption(
                     pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend
                 ),
+#                InputFormat.IMAGE: ImageFormatOption(
+#                    pipeline_cls=SimplePipeline  # , backend=MsWordDocumentBackend
+#                ),
             },
         )
     )

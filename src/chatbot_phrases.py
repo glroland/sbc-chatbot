@@ -57,7 +57,7 @@ file_keys = vdb_client.query(
     collection_name=VDB_COLLECTION_MD,
     filter="file like '%'",
     output_fields=["file"],
-    limit=3
+#    limit=3
 )
 print (f"File Keys [{len(file_keys)}]: {file_keys}")
 file_list = []

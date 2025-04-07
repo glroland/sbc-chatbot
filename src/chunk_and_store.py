@@ -92,9 +92,10 @@ def import_json(vdb_client, model, file_key, data):
             "vector": encode_text(model, text),
             "text": text
         }
+        logger.info("Storing row... %s", row)
         data.append(row)
     vdb_client.insert(collection_name=VDB_COLLECTION_PHRASES, data=data)
-    logger.debug(f"Inserted CMEs into collection")
+    logger.info(f"Inserted CMEs into collection")
 
     # extract common medical event data
     iq_tables = []
@@ -118,9 +119,10 @@ def import_json(vdb_client, model, file_key, data):
             "vector": encode_text(model, text),
             "text": text
         }
+        logger.info("Storing row... %s", row)
         data.append(row)
     vdb_client.insert(collection_name=VDB_COLLECTION_PHRASES, data=data)
-    logger.debug(f"Inserted IQs into collection")
+    logger.info(f"Inserted IQs into collection")
 
 
 def import_md(vdb_client, model, file_key, data):
@@ -131,8 +133,9 @@ def import_md(vdb_client, model, file_key, data):
         "vector": encode_text(model, data),
         "text": data
     }
+    logger.info("Storing row... %s", row)
     vdb_client.insert(collection_name=VDB_COLLECTION_MD, data=[row])
-    logger.debug(f"Inserted row into collection")
+    logger.info(f"Inserted row into collection")
 
 
 @click.command()
